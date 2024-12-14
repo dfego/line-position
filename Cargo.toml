@@ -1,0 +1,7 @@
+[package]
+name = "offset-to-line"
+description = "Simple and ergonomic lookup of line numbers for offsets in text."
+version = "0.1.0"
+edition = "2021"
+authors = ["Dan Fego <dan.fego@gmail.com>"]
+categories = ["parsing", "text-processing"]
