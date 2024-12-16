@@ -5,3 +5,6 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Dan Fego <dan.fego@gmail.com>"]
 categories = ["parsing", "text-processing"]
+
+[dependencies]
+thiserror = "2.0.7"

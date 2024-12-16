@@ -29,10 +29,13 @@
 //!
 #![warn(missing_docs)]
 
+use thiserror::Error;
+
 /// Error type for this crate.
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum LinesError {
     /// The offset passed to [position][Lines::position] was beyond the length of the input.
+    #[error("offset outside of input bounds")]
     OffsetOutOfBounds,
 }
 
