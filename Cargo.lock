@@ -3,5 +3,5 @@
 version = 4
 
 [[package]]
-name = "offset-to-line"
+name = "line-position"
 version = "0.1.0"

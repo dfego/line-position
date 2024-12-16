@@ -1,38 +1,61 @@
 //! Simple and ergonomic lookup of line numbers for offsets in text.
 //!
-//! This was written to support development of a [language server](https://microsoft.github.io/language-server-protocol/).
-//!
-//! Basic usage is to [parse](Lines::parse) input into [Lines] and then call [offset_line](Lines::offset_line).
+//! This was written to support development of a
+//! [language server](https://microsoft.github.io/language-server-protocol/).
 //!
 //! # Examples
 //!
+//! Basic usage is to [parse](Lines::parse) input into [Lines] and then call [position](Lines::position).
+//! Then you can access the one-indexed line number and zero-indexed offset within the line via
+//! [line](LinePosition::line) and [offset](LinePosition::offset).
+//!
 //! ```
-//! use offset_to_line::Lines;
-//! let input = "abcdefg\nhijklmnop\n";
-//! let lines = Lines::parse(input);
+//! use line_position::{Lines, LinePosition};
+//!
+//! let input: &str = "abcdefg\nhijklmnop\n";
+//! let lines: Lines = Lines::parse(input);
+//! let line_position: LinePosition = lines.position(5).unwrap();
 //! assert_eq!(lines.num_lines(), 2, "number of lines is 2");
-//! assert_eq!(lines.offset_line(7).unwrap(), 1, "newline on line 1");
-//! assert_eq!(lines.offset_line(8).unwrap(), 2, "h on line 2");
-//! assert!(lines.offset_line(18).is_err(), "out of bounds");
+//! assert_eq!(line_position.line(), 1, "f on line 1");
+//! assert_eq!(line_position.offset(), 5, "f at line offset 5");
+//! assert!(lines.position(18).is_err(), "out of bounds");
 //! ```
 //!
 //! # Similar Crates
 //!
-//! * [line-numbers](https://crates.io/crates/line-numbers) has similar functionality with a different design
+//! * [line-numbers](https://crates.io/crates/line-numbers) has similar functionality with a
+//!   different design
 //! * [line-span](https://crates.io/crates/line-span) offers more data with a more complex API
 //!
 #![warn(missing_docs)]
 
-/// Error type for this library.
-/// At present, only one error exists, but enum is to future-proof.
+/// Error type for this crate.
 #[derive(Debug)]
 pub enum LinesError {
-    /// Offset passed to [offset_line](Lines::offset_line) was beyond the bounds of the string parsed by [parse](Lines::parse).
+    /// The offset passed to [position][Lines::position] was beyond the length of the input.
     OffsetOutOfBounds,
 }
 
-type LineNumber = u32;
-type LinesResult = Result<LineNumber, LinesError>;
+type LinesResult = Result<LinePosition, LinesError>;
+
+/// Position within the file.
+#[derive(Debug)]
+pub struct LinePosition {
+    line: usize,
+    offset: usize,
+}
+
+impl LinePosition {
+    /// Line number of position, starting with 1.
+    pub fn line(&self) -> usize {
+        self.line
+    }
+
+    /// Offset within the line of the given position, starting with 0.
+    pub fn offset(&self) -> usize {
+        self.offset
+    }
+}
 
 #[derive(Debug)]
 struct Line {
@@ -44,7 +67,8 @@ struct Line {
 ///
 /// Simply:
 /// 1. Parse a string with [parse](Lines::parse)
-/// 2. Call [offset_line](Lines::offset_line) with an offset to get a line number.
+/// 2. Call [position](Lines::position) with an offset to get a [LinePosition].
+/// 3. Use [line][LinePosition::line] to access the line number and [offset][LinePosition::offset] to access the line offset.
 ///
 /// See the [main page](crate) for a full example.
 #[derive(Debug)]
@@ -80,11 +104,14 @@ impl Lines {
     /// Returns a [Result] containing either a line number on success, or [LinesError] on failure.
     ///
     /// The only possible error here is [OffsetOutOfBounds](LinesError::OffsetOutOfBounds), which occurs if the offset is beyond the length of the input.
-    pub fn offset_line(&self, offset: usize) -> LinesResult {
-        let mut line_number = 1u32;
+    pub fn position(&self, input_offset: usize) -> LinesResult {
+        let mut line_number = 1usize;
         for line in &self.lines {
-            if offset >= line.start && offset < line.end {
-                return Ok(line_number);
+            if input_offset >= line.start && input_offset < line.end {
+                return Ok(LinePosition {
+                    line: line_number,
+                    offset: input_offset - line.start,
+                });
             }
             line_number += 1
         }
@@ -109,9 +136,9 @@ mod tests {
         let input = "abcdefg";
         let lines = Lines::parse(input);
         assert_eq!(lines.num_lines(), 1, "number of lines is 1");
-        assert_eq!(lines.offset_line(0)?, 1, "a on line 1");
-        assert_eq!(lines.offset_line(6)?, 1, "g on line 1");
-        assert!(lines.offset_line(7).is_err(), "out of bounds");
+        assert_eq!(lines.position(0)?.line, 1, "a on line 1");
+        assert_eq!(lines.position(6)?.line, 1, "g on line 1");
+        assert!(lines.position(7).is_err(), "out of bounds");
 
         Ok(())
     }
@@ -122,9 +149,9 @@ mod tests {
         let lines = Lines::parse(input);
 
         assert_eq!(lines.num_lines(), 1, "number of lines is 1");
-        assert_eq!(lines.offset_line(0)?, 1, "a on line 1");
-        assert_eq!(lines.offset_line(7)?, 1, "newline on line 1");
-        assert!(lines.offset_line(8).is_err(), "out of bounds");
+        assert_eq!(lines.position(0)?.line, 1, "a on line 1");
+        assert_eq!(lines.position(7)?.line, 1, "newline on line 1");
+        assert!(lines.position(8).is_err(), "out of bounds");
 
         Ok(())
     }
@@ -135,9 +162,9 @@ mod tests {
         let lines = Lines::parse(input);
 
         assert_eq!(lines.num_lines(), 1, "number of lines is 1");
-        assert_eq!(lines.offset_line(0)?, 1, "a on line 1");
-        assert_eq!(lines.offset_line(8)?, 1, "newline on line 1");
-        assert!(lines.offset_line(9).is_err(), "out of bounds");
+        assert_eq!(lines.position(0)?.line, 1, "a on line 1");
+        assert_eq!(lines.position(8)?.line, 1, "newline on line 1");
+        assert!(lines.position(9).is_err(), "out of bounds");
 
         Ok(())
     }
@@ -148,8 +175,9 @@ mod tests {
         let lines = Lines::parse(input);
 
         assert_eq!(lines.num_lines(), 2, "number of lines is 2");
-        assert_eq!(lines.offset_line(7)?, 1, "newline on line 1");
-        assert_eq!(lines.offset_line(8)?, 2, "h on line 2");
+        assert_eq!(lines.position(7)?.line(), 1, "newline on line 1");
+        assert_eq!(lines.position(8)?.line(), 2, "h on line 2");
+        assert_eq!(lines.position(8)?.offset(), 0, "h at offset 0");
 
         Ok(())
     }
@@ -160,8 +188,9 @@ mod tests {
         let lines = Lines::parse(input);
 
         assert_eq!(lines.num_lines(), 2, "number of lines is 2");
-        assert_eq!(lines.offset_line(8)?, 1, "newline on line 1");
-        assert_eq!(lines.offset_line(9)?, 2, "h on line 2");
+        assert_eq!(lines.position(8)?.line(), 1, "newline on line 1");
+        assert_eq!(lines.position(9)?.line(), 2, "h on line 2");
+        assert_eq!(lines.position(9)?.offset(), 0, "h at offset 0");
 
         Ok(())
     }
@@ -172,10 +201,10 @@ mod tests {
         let lines = Lines::parse(input);
 
         assert_eq!(lines.num_lines(), 2, "number of lines is 2");
-        assert_eq!(lines.offset_line(8)?, 1, "first newline on line 1");
-        assert_eq!(lines.offset_line(9)?, 2, "h on line 2");
-        assert_eq!(lines.offset_line(24)?, 2, "v on line 2");
-        assert!(lines.offset_line(25).is_err(), "out of bounds");
+        assert_eq!(lines.position(8)?.line(), 1, "first newline on line 1");
+        assert_eq!(lines.position(9)?.line(), 2, "h on line 2");
+        assert_eq!(lines.position(24)?.line(), 2, "v on line 2");
+        assert!(lines.position(25).is_err(), "out of bounds");
 
         Ok(())
     }

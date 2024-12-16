@@ -1,6 +1,6 @@
 [package]
-name = "offset-to-line"
-description = "Simple and ergonomic lookup of line numbers for offsets in text."
+name = "line-position"
+description = "Simple and ergonomic lookup of line numbers and offsets for given text positions."
 version = "0.1.0"
 edition = "2021"
 authors = ["Dan Fego <dan.fego@gmail.com>"]
